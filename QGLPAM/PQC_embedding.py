@@ -1,7 +1,5 @@
 from qiskit import QuantumCircuit
 
-    
-
 def costruct_embeddings_1(num_qubits,features,params):
     pqc= QuantumCircuit(num_qubits)
     for qubit in range(num_qubits):
