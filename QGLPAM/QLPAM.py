@@ -164,7 +164,7 @@ if __name__ == "__main__":
     plt.title('Heatmap of Expectation Values per Qubit across Data Samples')
     plt.xlabel('Qubits')
     plt.ylabel('Data Samples')
-    plt.xticks(ticks=[0.5, 1.5, 2.5, 3.5], labels=['q0', 'q1', 'q2', 'q3'])  # Etichetta per ogni qubit
+    plt.xticks(ticks=[0.5, 1.5, 2.5, 3.5], labels=['q0', 'q1', 'q2', 'q3'])  # Labels for each qubit
     plt.savefig('graphics/expectation_values_heatmap.png', dpi=300, bbox_inches='tight')
     plt.close()
     data_test_reconstructed = pca_test.inverse_transform(expectation_values_all_samples)
