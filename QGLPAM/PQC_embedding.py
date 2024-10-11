@@ -1,13 +1,6 @@
 from qiskit import QuantumCircuit
-from qiskit import execute, Aer
 import matplotlib.pyplot as plt
 import numpy as np
-from evovaq.problem import Problem
-from evovaq.GeneticAlgorithm import GA
-from evovaq.HillClimbing import HC
-from evovaq.MemeticAlgorithm import MA
-import evovaq.tools.operators as op
-from sklearn.metrics import log_loss
 
     
 
