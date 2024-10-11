@@ -20,7 +20,7 @@ import pywt
 from PQC_embedding import *
 
 
-# Quantum Latent PCA Autoencoding Model: QLPAM
+# Quantum Latent PCA Autoencoding Model with EVOVAQ Optimizer: QGLPAM
 if __name__ == "__main__":
     
     df = pd.read_excel("./data/SWaT_Dataset_Attack_v0.xlsx")
