@@ -22,7 +22,7 @@ from evovaq.MemeticAlgorithm import MA
 import evovaq.tools.operators as op
 from fastdtw import fastdtw
 from scipy.spatial.distance import pdist, squareform
-from joblib import Parallel, delayed
+from joblib import Parallel
 
 
 
