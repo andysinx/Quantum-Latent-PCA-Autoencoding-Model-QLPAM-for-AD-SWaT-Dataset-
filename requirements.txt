@@ -120,8 +120,6 @@ pandas==2.2.3
 pandocfilters==1.5.1
 parso==0.8.4
 pbr==6.1.0
-PennyLane==0.38.0
-PennyLane_Lightning==0.38.0
 pexpect==4.9.0
 pillow==10.4.0
 pip==24.2
