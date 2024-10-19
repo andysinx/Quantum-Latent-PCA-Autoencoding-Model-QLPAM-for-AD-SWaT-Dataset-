@@ -21,7 +21,6 @@ from evovaq.MemeticAlgorithm import MA
 import evovaq.tools.operators as op
 from fastdtw import fastdtw
 from scipy.spatial.distance import pdist, squareform
-from joblib import Parallel
 
 
 
@@ -75,10 +74,7 @@ if __name__ == "__main__":
     def compute_dtw_matrix(X):
         num_cores = -1
         X_array = X.values
-        dtw_distances = Parallel(n_jobs=num_cores)(
-            squareform(pdist(X_array.T, metric=lambda u, v: fastdtw(u, v)[0]))
-        )
-        
+        dtw_distances = squareform(pdist(X_array.T, metric=lambda u, v: fastdtw(u, v)[0]))
         return dtw_distances
 
     #dtw_distances = compute_dtw_matrix(sampled_data)
