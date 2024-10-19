@@ -10,7 +10,6 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pylab import rcParams
 from sklearn.ensemble import IsolationForest
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, precision_score, confusion_matrix, roc_curve, recall_score, 
