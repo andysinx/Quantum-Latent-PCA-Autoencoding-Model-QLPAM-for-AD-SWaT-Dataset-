@@ -104,15 +104,15 @@ if __name__ == "__main__":
             gpu_estimator.set_options(precision='single')
         except AerError as e:
             print(e)    
-        print("feature:", features)
-        print("params:", params)
+        #print("feature:", features)
+        #print("params:", params)
         bound_circuit = circuit.assign_parameters(np.concatenate((features, params)))
         observables = [Pauli('ZIII'), Pauli('IZII'), Pauli('IIZI'), Pauli('IIIZ')]
         estimator = EstimatorV2(gpu_estimator)
         expectation_values = [estimator.run([(bound_circuit, obs)]).result()[0].data.evs for obs in observables]
-        print("expectation_values: ", expectation_values)
+        #print("expectation_values: ", expectation_values)
         exp_val = [exp.item() for exp in expectation_values]
-        print("exp_values: ", exp_val)
+        #print("exp_values: ", exp_val)
         return exp_val
         
     pca = PCA(n_components=4)
@@ -151,17 +151,17 @@ if __name__ == "__main__":
         data_train_iso = expectation_values_all_samples[:mid_index]
         data_val_iso = expectation_values_all_samples[mid_index:]
         #data_reconstructed = pca.inverse_transform(expectation_values_all_samples)
-        print("data_train_iso: ", data_train_iso)
-        print("data_val_iso: ", data_val_iso)
+        #print("data_train_iso: ", data_train_iso)
+        #print("data_val_iso: ", data_val_iso)
         iso_model.fit(data_train_iso)
         iso_predictions = iso_model.predict(data_val_iso)
         iso_predictions = [1 if pred == -1 else 0 for pred in iso_predictions]
         iso_predictions = np.array(iso_predictions, dtype=float)
-        print("iso_predictions: ", iso_predictions)
+        #print("iso_predictions: ", iso_predictions)
         iso_true = y_train[mid_index:].values
         accuracy = accuracy_score(iso_true, iso_predictions)
-        print("iso_true: ", iso_true)
-        print("accuracy: ", accuracy)
+        #print("iso_true: ", iso_true)
+        #print("accuracy: ", accuracy)
         return accuracy  # RECOSTRUCTION LOSS
 
     
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     def get_neighbour(problem, current_solution):
         neighbour = current_solution.copy()
         index = np.random.randint(0, len(current_solution))
-        print("problem.param_bounds: ", problem.param_bounds)
+        #print("problem.param_bounds: ", problem.param_bounds)
         _min, _max = problem.param_bounds
         neighbour[index] = np.random.uniform(_min, _max)
         return neighbour
