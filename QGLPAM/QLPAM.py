@@ -5,9 +5,11 @@ from qiskit_ibm_runtime import EstimatorV2
 from qiskit.quantum_info import Pauli
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import TwoLocal
+from keras.models import  Sequential
+from keras.layers import Dense
+from keras.callbacks import ModelCheckpoint, TensorBoard
 import pandas as pd
 import numpy as np
-import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.ensemble import IsolationForest
@@ -21,6 +23,7 @@ from evovaq.MemeticAlgorithm import MA
 import evovaq.tools.operators as op
 from fastdtw import fastdtw
 from scipy.spatial.distance import pdist, squareform
+
 
 
 
@@ -71,15 +74,6 @@ if __name__ == "__main__":
     sampled_data_dtw=sampled_data[sensors]
     
     
-    def compute_dtw_matrix(X):
-        num_cores = -1
-        X_array = X.values
-        dtw_distances = squareform(pdist(X_array.T, metric=lambda u, v: fastdtw(u, v)[0]))
-        return dtw_distances
-
-    #dtw_distances = compute_dtw_matrix(sampled_data)
-    #sampled_data['dtw_distances'] = dtw_distances
-    
     # Creating X_training and X_testing datasets
     X_train, X_test = train_test_split(sampled_data, test_size = 0.2, random_state = 42)
 
@@ -114,12 +108,51 @@ if __name__ == "__main__":
         exp_val = [exp.item() for exp in expectation_values]
         #print("exp_values: ", exp_val)
         return exp_val
-        
+
+    
+    #PCA O ENCODING NEURALE (BASTA COMMENTARE UNO E SCOMMENTARE L'ALTRO)
+    '''ae = model = Sequential()
+    model.add(Dense(35, input_dim=X_train.shape[1], activation='relu'))
+    model.add(Dense(30, activation='relu'))
+    model.add(Dense(25, activation='relu'))
+    model.add(Dense(15, activation='relu'))
+    model.add(Dense(10, activation='relu'))
+    model.add(Dense(4, activation='relu'))
+    model.add(Dense(10, activation='relu'))
+    model.add(Dense(15, activation='relu'))
+    model.add(Dense(25, activation='relu'))
+    model.add(Dense(30, activation='relu'))
+    model.add(Dense(35, activation='relu'))
+    model.add(Dense(X_train.shape[1]))
+
+    nb_epoch = 150
+    batch_size = 64
+
+    ae.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
+
+    checkpointer = ModelCheckpoint(filepath="./model.SWAT.keras", verbose=0)
+
+    tensorboard = TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
+
+    history = ae.fit(X_train, X_train, epochs=nb_epoch, batch_size=batch_size, shuffle=True, validation_data=(X_test, X_test), verbose=1, callbacks=[checkpointer, tensorboard]).history
+    
+    
+    encoder_model = Sequential()  # Modello separato per ottenere solo la parte di encoding
+    encoder_model.add(ae.layers[0])  # Strato di input
+    encoder_model.add(ae.layers[1])
+    encoder_model.add(ae.layers[2])
+    encoder_model.add(ae.layers[3])
+    encoder_model.add(ae.layers[4])
+    encoder_model.add(ae.layers[5])
+    
+    reduced_data = encoder_model.predict(X_train)'''
+            
+    #print("reduced_data_len:", len(reduced_data))
     pca = PCA(n_components=4)
     reduced_data = pca.fit_transform(X_train)
-    print(reduced_data.shape)
+    #print(reduced_data.shape)
     dim = reduced_data.shape[1]  # LATENT SPACE PQC
-            
+     
     ansatz = TwoLocal(dim, rotation_blocks=['rx', 'ry', 'rz'], entanglement_blocks=['cx', 'swap', 'h'], entanglement='circular', reps=2 , insert_barriers=True)
 
     # Define an Ansatz to be trained
@@ -127,7 +160,7 @@ if __name__ == "__main__":
     feature_map &= ansatz
     feature_map = feature_map.decompose()
     feature_map.draw(output='mpl')
-    plt.savefig('graphics/quantum_kernels.png')
+    plt.savefig('graphics_1/quantum_kernels.png')
 
 
     # Put together our quantum classifier
@@ -230,7 +263,7 @@ if __name__ == "__main__":
     plt.title("Confusion Matrix")
     plt.ylabel('True Class')
     plt.xlabel('Predicted Class')
-    plt.savefig('graphics/confusion_matrix_test.png', dpi=300, bbox_inches='tight')
+    plt.savefig('graphics_1/confusion_matrix_test.png', dpi=300, bbox_inches='tight')
     plt.close()
     
     # Grafico della curva ROC
@@ -244,7 +277,7 @@ if __name__ == "__main__":
     plt.title('Receiver Operating Characteristic (ROC) Curve')
     plt.legend(loc='lower right')
     plt.grid()
-    plt.savefig('graphics/roc_curve_isolation.png', dpi=300, bbox_inches='tight')
+    plt.savefig('graphics_1/roc_curve_isolation.png', dpi=300, bbox_inches='tight')
     plt.close()
     
     plt.figure(figsize=(10, 6))
@@ -253,6 +286,9 @@ if __name__ == "__main__":
     plt.xlabel('Qubits')
     plt.ylabel('Data Samples')
     plt.xticks(ticks=[0.5, 1.5, 2.5, 3.5], labels=['q0', 'q1', 'q2', 'q3'])  # Etichetta per ogni qubit
-    plt.savefig('graphics/expectation_values_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.savefig('graphics_1/expectation_values_heatmap.png', dpi=300, bbox_inches='tight')
     plt.close()
+    
+    #data_test_reconstructed = pca_test.inverse_transform(expectation_values_all_samples)
+    #print("MSE test: ", mse(X_test, data_test_reconstructed))
     
