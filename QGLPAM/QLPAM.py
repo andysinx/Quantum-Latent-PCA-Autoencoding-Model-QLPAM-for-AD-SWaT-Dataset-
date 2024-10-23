@@ -1,3 +1,8 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 from sklearn.decomposition import PCA
 from qiskit_aer import AerError
 from qiskit_aer import AerSimulator
@@ -8,22 +13,11 @@ from qiskit.circuit.library import TwoLocal
 from keras.src import Sequential
 from keras.src.layers import Dense
 from keras.src.callbacks import ModelCheckpoint, TensorBoard
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.ensemble import IsolationForest
 from sklearn.model_selection import train_test_split
+from HQGA import problems, hqga_algorithm, hqga_utils, utils
 from sklearn.metrics import (accuracy_score, precision_score, confusion_matrix, roc_curve, recall_score,
                              classification_report, roc_auc_score, f1_score, precision_recall_fscore_support)
-from evovaq.problem import Problem
-from evovaq.GeneticAlgorithm import GA
-from evovaq.HillClimbing import HC
-from evovaq.MemeticAlgorithm import MA
-import evovaq.tools.operators as op
-
-from HQGA import problems, hqga_algorithm, hqga_utils, utils, discretization
-
 # from fastdtw import fastdtw
 from scipy.spatial.distance import pdist, squareform
 
