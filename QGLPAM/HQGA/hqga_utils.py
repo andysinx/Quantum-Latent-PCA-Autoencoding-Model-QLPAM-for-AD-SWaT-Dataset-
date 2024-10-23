@@ -44,11 +44,11 @@ def fromQtoC(max_counts):
     return classical_chromosomes
 
 
-def computeFitnesses(classical_chromosomes, theta, fitness_f):
+def computeFitnesses(classical_chromosomes, fitness_f):
     """Function that returns the fitness values of the classical chromosomes"""
     fitnesses = []
     for chr in classical_chromosomes:
-        fitnesses.append(fitness_f(chr, theta))
+        fitnesses.append(fitness_f(chr))
     return fitnesses
 
 

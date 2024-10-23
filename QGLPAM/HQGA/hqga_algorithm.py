@@ -87,7 +87,7 @@ def runQGA(device_features, circuit, params, problem):
         if params.verbose:
             print("Phenotypes:", l_sup)
 
-        fitnesses = hqga_utils.computeFitnesses(classical_chromosomes, theta, problem.evaluate)
+        fitnesses = hqga_utils.computeFitnesses(classical_chromosomes, problem.evaluate)
         if params.verbose:
             print("Fitness values:", fitnesses)
         if gen != 0:

@@ -146,12 +146,9 @@ class RealProblem(Problem):
         return sols, gray_sols, fitnesses
 
 
-class VariationalProblem():
-    def __init__(self, dimension, num_bit_code, lower_bounds, upper_bounds, circuit, iso_model, data, y_train):
-        self.dim = dimension
-        self.num_bit_code = num_bit_code
-        self.lower_bounds = lower_bounds
-        self.upper_bounds = upper_bounds
+class VariationalProblem(RealProblem):
+    def __init__(self, name, dimension, num_bit_code, lower_bounds, upper_bounds, circuit, iso_model, data, y_train):
+        super().__init__(name, dimension, num_bit_code, lower_bounds, upper_bounds)
         self.circuit = circuit
         self.iso_model = iso_model
         self.data = data
@@ -177,11 +174,11 @@ class VariationalProblem():
         exp_val = [exp.item() for exp in expectation_values]
         return exp_val
 
-    def computeFitness(self, chr, theta):
+    def computeFitness(self, chr):
         expectation_values_all_samples = []
 
         for features in self.data:
-            reconstruction = self.calculate_expectation_value(self.circuit, features, theta)
+            reconstruction = self.calculate_expectation_value(self.circuit, features, chr)
             expectation_values_all_samples.append(reconstruction)
 
         mid_index = len(expectation_values_all_samples) // 2
@@ -195,9 +192,9 @@ class VariationalProblem():
         accuracy = accuracy_score(iso_true, iso_predictions)
         return accuracy
 
-    def evaluate(self, chr, theta):
+    def evaluate(self, chr):
         phenotype = self.convert(chr)
-        return self.computeFitness(phenotype, theta)
+        return self.computeFitness(phenotype)
 
 
 class RastriginProblem(RealProblem):
@@ -340,7 +337,7 @@ class BirdProblem(RealProblem):
         x = chr_real[0]
         y = chr_real[1]
         res = math.sin(x) * math.exp((1 - math.cos(y)) ** 2) + math.cos(y) * math.exp((1 - math.sin(x)) ** 2) + (
-                    x - y) ** 2
+                x - y) ** 2
         # print("fitness value ", res)
         return res
 
@@ -365,8 +362,8 @@ class GoldeinsteinProblem(RealProblem):
         X = chr_real[0]
         Y = chr_real[1]
         res = (1 + ((X + Y + 1) ** 2) * (19 - (14 * X) + (3 * (X ** 2)) - 14 * Y + (6 * X * Y) + (3 * (Y ** 2)))) * (
-                    30 + ((2 * X - 3 * Y) ** 2) * (
-                        18 - 32 * X + 12 * (X ** 2) + 48 * Y - (36 * X * Y) + (27 * (Y ** 2))))
+                30 + ((2 * X - 3 * Y) ** 2) * (
+                18 - 32 * X + 12 * (X ** 2) + 48 * Y - (36 * X * Y) + (27 * (Y ** 2))))
         # print("fitness value ", res)
         return res
 
