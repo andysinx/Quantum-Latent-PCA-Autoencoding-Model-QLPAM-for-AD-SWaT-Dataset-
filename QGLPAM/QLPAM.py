@@ -1,15 +1,17 @@
+import logging
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.decomposition import PCA
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import Pauli
+from qiskit.circuit.library import TwoLocal
 from qiskit_aer import AerError
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2
-from qiskit.quantum_info import Pauli
-from qiskit import QuantumCircuit
-from qiskit.circuit.library import TwoLocal
 from keras.src import Sequential
 from keras.src.layers import Dense
 from keras.src.callbacks import ModelCheckpoint, TensorBoard
@@ -21,9 +23,12 @@ from sklearn.metrics import (accuracy_score, precision_score, confusion_matrix, 
 # from fastdtw import fastdtw
 from scipy.spatial.distance import pdist, squareform
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def load_data():
+    logging.info("Loading data from SWaT_Dataset_Attack_v0.xlsx.")
     df = pd.read_excel("./data/SWaT_Dataset_Attack_v0.xlsx")
+    logging.info("Data loaded!")
 
     df.columns = [
         'TIMESTAMP', 'FIT101', 'LIT101', 'MV101', 'P101', 'P102', 'AIT201', 'AIT202', 'AIT203', 'FIT201', 'MV201',
@@ -64,7 +69,7 @@ def load_data():
     attack_mask = df[df.OUTCOME == 1]
 
     sensors = ['FIT101', 'LIT101']
-    sampled_data = df.sample(n=5000, random_state=42)
+    sampled_data = df.sample(n=1000, random_state=42)
     sampled_data = sampled_data.astype(np.float64)
     sampled_data_dtw = sampled_data[sensors]
 
@@ -81,9 +86,9 @@ def load_data():
     X_train = X_train.values
     X_test = X_test.values
 
-    print(X_train.shape)
-    print(X_test.shape)
-    print(y_test.shape)
+    logging.info("X_train shape: {}", X_train.shape)
+    logging.info("X_test shape: {}", X_test.shape)
+    logging.info("y_test shape: {}", y_test.shape)
 
     return X_train, X_test, y_test, y_train
 
@@ -182,7 +187,7 @@ def test(pca, X_test, y_test, iso_model, res, circuit):
     plt.title("Confusion Matrix")
     plt.ylabel('True Class')
     plt.xlabel('Predicted Class')
-    plt.savefig('graphics_1/confusion_matrix_test.png', dpi=300, bbox_inches='tight')
+    plt.savefig('./graphics/confusion_matrix_test.png', dpi=300, bbox_inches='tight')
     plt.close()
 
     # Grafico della curva ROC
@@ -196,7 +201,7 @@ def test(pca, X_test, y_test, iso_model, res, circuit):
     plt.title('Receiver Operating Characteristic (ROC) Curve')
     plt.legend(loc='lower right')
     plt.grid()
-    plt.savefig('graphics_1/roc_curve_isolation.png', dpi=300, bbox_inches='tight')
+    plt.savefig('./graphics/roc_curve_isolation.png', dpi=300, bbox_inches='tight')
     plt.close()
 
     plt.figure(figsize=(10, 6))
@@ -205,7 +210,7 @@ def test(pca, X_test, y_test, iso_model, res, circuit):
     plt.xlabel('Qubits')
     plt.ylabel('Data Samples')
     plt.xticks(ticks=[0.5, 1.5, 2.5, 3.5], labels=['q0', 'q1', 'q2', 'q3'])  # Etichetta per ogni qubit
-    plt.savefig('graphics_1/expectation_values_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.savefig('./graphics/expectation_values_heatmap.png', dpi=300, bbox_inches='tight')
     plt.close()
 
     # data_test_reconstructed = pca.inverse_transform(expectation_values_all_samples)
@@ -213,7 +218,9 @@ def test(pca, X_test, y_test, iso_model, res, circuit):
 
 
 def main():
+    # %%
     X_train, X_test, y_test, y_train = load_data()
+    # %%
 
     # Reduced Data with Neural Network
     # reduced_data = get_reduced_data_with_nn(X_train, X_test)
@@ -232,7 +239,7 @@ def main():
     feature_map &= ansatz
     feature_map = feature_map.decompose()
     feature_map.draw(output='mpl')
-    plt.savefig('graphics/quantum_kernels.png')
+    plt.savefig('./graphics/quantum_kernels.png')
 
     # Put together our quantum classifier
     circuit = feature_map
@@ -241,6 +248,7 @@ def main():
     # circuit.measure_all()
 
     real_quantum_hardware = False
+    backend = None
 
     if real_quantum_hardware:
         # WRITE CODE
@@ -251,6 +259,10 @@ def main():
             backend.set_options(precision='single')
         except AerError as e:
             print(e)
+
+    if backend is None:
+        raise ValueError("Error while initializing the backend")
+
     device_features = hqga_utils.device(backend)
 
     # hyper-parameters in the case of the quantum elitism
@@ -263,12 +275,17 @@ def main():
     rho = np.pi / 16
     elitism = hqga_utils.ELITISM_Q
 
+    params = None
+
     if elitism == hqga_utils.ELITISM_Q or elitism == hqga_utils.ELITISM_D:
         params = hqga_utils.Parameters(k, max_gen, delta, mu, elitism)
     elif elitism == hqga_utils.ELITISM_R:
         params = hqga_utils.ReinforcementParameters(k, max_gen, delta, rho, mu)
     else:
         print("Please, select one elitism procedure among ELITISM_Q, ELITISM_D and ELITISM_R")
+
+    if params is None:
+        raise ValueError("Error while initializing params!")
 
     # presentation hyper-parameters
     params.progressBar = True
@@ -278,9 +295,13 @@ def main():
     iso_model = IsolationForest(n_estimators=100, max_samples='auto', contamination=float(.012),
                                 max_features=1.0, bootstrap=False, n_jobs=-1, random_state=42, verbose=0)
 
-    problem = problems.VariationalProblem(4, 5, -np.pi, np.pi, circuit, iso_model, reduced_data, y_train)
+    problem = problems.VariationalProblem("AnomalyDetection", 4, 5, -np.pi, np.pi, circuit, iso_model, reduced_data, y_train)
+
+    logging.info("Starting HQGA Algorithm...")
 
     gBest, chromosome_evolution, bests = hqga_algorithm.runQGA(device_features, circuit, params, problem)
+
+    logging.info("HQGA Algorithm Completed!")
 
     print("Best solution", gBest.chr)
     print("Optimal solutions", problem.getOptimum()[2])
@@ -288,6 +309,8 @@ def main():
         dis = utils.hamming_distance(gBest.chr, each_sol[0])
 
         print("Hamming distance", dis)
+
+    logging.info("Testing the result")
 
     test(pca, X_test, y_test, iso_model, gBest, circuit)
 
