@@ -88,7 +88,7 @@ def load_data():
     return X_train, X_test, y_test, y_train
 
 
-def get_reduced_data_with_nn(X_train):
+def get_reduced_data_with_nn(X_train, X_test):
     # PCA O ENCODING NEURALE (BASTA COMMENTARE UNO E SCOMMENTARE L'ALTRO)
     ae = model = Sequential()
     model.add(Dense(35, input_dim=X_train.shape[1], activation='relu'))
@@ -216,7 +216,7 @@ def main():
     X_train, X_test, y_test, y_train = load_data()
 
     # Reduced Data with Neural Network
-    # reduced_data = get_reduced_data_with_nn(X_train)
+    # reduced_data = get_reduced_data_with_nn(X_train, X_test)
 
     # Reduced Data with PCA
     pca = PCA(n_components=4)
