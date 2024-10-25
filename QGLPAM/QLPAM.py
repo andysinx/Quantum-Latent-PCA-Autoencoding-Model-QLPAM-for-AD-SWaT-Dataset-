@@ -25,6 +25,7 @@ from scipy.spatial.distance import pdist, squareform
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
 def load_data():
     logging.info("Loading data from SWaT_Dataset_Attack_v0.xlsx.")
     df = pd.read_excel("./data/SWaT_Dataset_Attack_v0.xlsx")
@@ -218,9 +219,7 @@ def test(pca, X_test, y_test, iso_model, res, circuit):
 
 
 def main():
-    # %%
     X_train, X_test, y_test, y_train = load_data()
-    # %%
 
     # Reduced Data with Neural Network
     # reduced_data = get_reduced_data_with_nn(X_train, X_test)
@@ -295,7 +294,8 @@ def main():
     iso_model = IsolationForest(n_estimators=100, max_samples='auto', contamination=float(.012),
                                 max_features=1.0, bootstrap=False, n_jobs=-1, random_state=42, verbose=0)
 
-    problem = problems.VariationalProblem("AnomalyDetection", 4, 5, -np.pi, np.pi, circuit, iso_model, reduced_data, y_train)
+    problem = problems.VariationalProblem("AnomalyDetection", 4, 5, -np.pi, np.pi, circuit, iso_model, reduced_data,
+                                          y_train)
 
     logging.info("Starting HQGA Algorithm...")
 
