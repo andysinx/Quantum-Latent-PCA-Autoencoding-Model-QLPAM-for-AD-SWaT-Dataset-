@@ -162,11 +162,17 @@ class VariationalProblem(RealProblem):
         return self.convertToReal(chr)
 
     def calculate_expectation_value(self, circuit, features, params):
+        gpu_estimator = None
+
         try:
             gpu_estimator = AerSimulator(method='statevector', device='GPU')
             gpu_estimator.set_options(precision='single')
         except AerError as e:
             print(e)
+
+        if gpu_estimator is None:
+            raise ValueError("Error while initializing the gpu_estimator")
+
         bound_circuit = circuit.assign_parameters(np.concatenate((features, params)))
         observables = [Pauli('ZIII'), Pauli('IZII'), Pauli('IIZI'), Pauli('IIIZ')]
         estimator = EstimatorV2(gpu_estimator)

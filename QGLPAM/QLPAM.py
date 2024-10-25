@@ -87,9 +87,9 @@ def load_data():
     X_train = X_train.values
     X_test = X_test.values
 
-    logging.info("X_train shape: {}", X_train.shape)
-    logging.info("X_test shape: {}", X_test.shape)
-    logging.info("y_test shape: {}", y_test.shape)
+    logging.info(f"Training data shape: {X_train.shape}")
+    logging.info(f"Testing data shape: {X_test.shape}")
+    logging.info(f"Test labels shape: {y_test.shape}")
 
     return X_train, X_test, y_test, y_train
 
@@ -134,11 +134,17 @@ def get_reduced_data_with_nn(X_train, X_test):
 
 
 def calculate_expectation_value(circuit, features, params):
+    gpu_estimator = None
+
     try:
         gpu_estimator = AerSimulator(method='statevector', device='GPU')
         gpu_estimator.set_options(precision='single')
     except AerError as e:
         print(e)
+
+    if gpu_estimator is None:
+        raise ValueError("Error while initializing the gpu_estimator")
+
     bound_circuit = circuit.assign_parameters(np.concatenate((features, params)))
     observables = [Pauli('ZIII'), Pauli('IZII'), Pauli('IIZI'), Pauli('IIIZ')]
     estimator = EstimatorV2(gpu_estimator)
@@ -254,7 +260,8 @@ def main():
         backend = ""  # COMPLETE CODE
     else:
         try:
-            backend = AerSimulator(method='tensor_network', device='GPU')
+            # backend = AerSimulator(method='tensor_network', device='GPU')
+            backend = AerSimulator()
             backend.set_options(precision='single')
         except AerError as e:
             print(e)
