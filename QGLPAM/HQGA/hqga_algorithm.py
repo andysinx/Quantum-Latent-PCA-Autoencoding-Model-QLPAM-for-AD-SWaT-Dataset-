@@ -1,15 +1,30 @@
 import copy
+import math
+import random
+import time
+
+import numpy as np
+from pyexpat import features
 from tqdm import tqdm
 from qiskit import transpile
 
 from . import hqga_utils
 
 
+def generate_random_parameter_binds(num_parameters):
+    parameter_binds = []
+
+    for _ in range(len(num_parameters)):
+        parameter_binds.append(random.uniform(-math.pi, math.pi))
+
+    return parameter_binds
+
+
 def runQGA(device_features, circuit, params, problem):
     """Function that runs HQGA
 
     Args:
-        devices_features (hqga_utils.device): information about the device used to run HQGA
+        device_features (hqga_utils.device): information about the device used to run HQGA
         circuit (qiskit.QuantumCircuit): circuit to be run during HQGA iterations
         params (hqga_utils.Parameters): information about the hyper-parameters of HQGA
         problem (problems.Problem): information about the problem to be solved
@@ -50,30 +65,66 @@ def runQGA(device_features, circuit, params, problem):
             print("Circuit depth is ", circuit.depth())
 
         # Execute the circuit on the qasm simulator
+
         while True:
             circuit.name = str(params.qobj_id) + str(gen)
+
             try:
                 if device_features.real:
-                    qc_routed = transpile(circuits=circuit, backend=device_features.device, initial_layout=None,
-                                          optimization_level=3, layout_method='sabre', routing_method='basic')
-
-                    job = device_features.device.run(qc_routed, shots=params.num_shots)
+                    qc_routed = transpile(
+                        circuits=circuit,
+                        backend=device_features.device,
+                        initial_layout=None,
+                        optimization_level=3,
+                        layout_method='sabre',
+                        routing_method='basic'
+                    )
+                    job = device_features.device.run(qc_routed)
                 else:
-                    qc_routed = transpile(circuits=circuit, initial_layout=None, optimization_level=3,
-                                          layout_method='sabre',
-                                          routing_method='basic', coupling_map=device_features.coupling_map,
-                                          basis_gates=device_features.basis_gates)
+                    feature_to_bind = [1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5]
+                    # feature_to_bind = []
+                    # iterations = int((circuit.num_parameters - circuit.num_qubits) / 4)
+                    # for i in range(iterations):
+                    #     tmp = problem.data[(i+1)*4]
+                    #     for j in tmp:
+                    #         feature_to_bind.append(j)
+
+                    if gen == 0:
+                        rand_params = generate_random_parameter_binds(num_parameters=circuit.qubits)
+                        bind_params = np.concatenate((feature_to_bind, rand_params))
+                    else:
+                        bind_params = np.concatenate((feature_to_bind, chromosome_evolution))
+
+                    bounded_circuit = circuit.assign_parameters(bind_params)
+
+                    bounded_circuit.measure_all()
+
+                    qc_routed = transpile(
+                        circuits=bounded_circuit,
+                        backend=device_features.device,
+                        initial_layout=None,
+                        optimization_level=3,
+                        layout_method='sabre',
+                        routing_method='basic',
+                        coupling_map=device_features.coupling_map,
+                        basis_gates=device_features.basis_gates,
+                    )
 
                     job = device_features.device.run(qc_routed, shots=params.num_shots)
-                    # Grab results from the job
-                result = job.result()
-                # print(result)
+
+                    while not job.done():
+                        print("Job is still running...")
+                        time.sleep(2)
+
+                # Grab results from the job
+                result = job.result(timeout=6.0)
                 break
+
             except Exception as e:
-                print(e)
+                print(f"Error in job execution: {e}")
 
         # Returns counts
-        counts = result.get_counts(circuit)
+        counts = result.get_counts(qc_routed)
 
         # compute fitness evaluation
         classical_chromosomes = hqga_utils.fromQtoC(hqga_utils.getMaxProbKey(counts))

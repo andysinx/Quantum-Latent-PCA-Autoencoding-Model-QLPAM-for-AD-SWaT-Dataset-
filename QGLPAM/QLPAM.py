@@ -9,7 +9,7 @@ from sklearn.decomposition import PCA
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import Pauli
 from qiskit.circuit.library import TwoLocal
-from qiskit_aer import AerError
+from qiskit_aer import AerError, Aer
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2
 from keras.src import Sequential
@@ -225,16 +225,17 @@ def test(pca, X_test, y_test, iso_model, res, circuit):
 
 
 def main():
-    X_train, X_test, y_test, y_train = load_data()
+    # X_train, X_test, y_test, y_train = load_data()
 
     # Reduced Data with Neural Network
     # reduced_data = get_reduced_data_with_nn(X_train, X_test)
 
     # Reduced Data with PCA
     pca = PCA(n_components=4)
-    reduced_data = pca.fit_transform(X_train)
+    # reduced_data = pca.fit_transform(X_train)
 
-    dim = reduced_data.shape[1]  # LATENT SPACE PQC
+    # dim = reduced_data.shape[1]  # LATENT SPACE PQC
+    dim = 4  # LATENT SPACE PQC
 
     ansatz = TwoLocal(dim, rotation_blocks=['rx', 'ry', 'rz'], entanglement_blocks=['cx', 'swap', 'h'],
                       entanglement='circular', reps=1, insert_barriers=True)
@@ -260,8 +261,8 @@ def main():
         backend = ""  # COMPLETE CODE
     else:
         try:
-            # backend = AerSimulator(method='tensor_network', device='GPU')
-            backend = AerSimulator()
+            # backend = AerSimulator(method='automatic')
+            backend = Aer.get_backend('aer_simulator')
             backend.set_options(precision='single')
         except AerError as e:
             print(e)
@@ -301,8 +302,8 @@ def main():
     iso_model = IsolationForest(n_estimators=100, max_samples='auto', contamination=float(.012),
                                 max_features=1.0, bootstrap=False, n_jobs=-1, random_state=42, verbose=0)
 
-    problem = problems.VariationalProblem("AnomalyDetection", 4, 5, -np.pi, np.pi, circuit, iso_model, reduced_data,
-                                          y_train)
+    # problem = problems.VariationalProblem("AnomalyDetection", 4, 5, -np.pi, np.pi, circuit, iso_model, reduced_data, y_train)
+    problem = problems.VariationalProblem("AnomalyDetection", 4, 5, -np.pi, np.pi, circuit, iso_model, None, None)
 
     logging.info("Starting HQGA Algorithm...")
 
@@ -319,7 +320,7 @@ def main():
 
     logging.info("Testing the result")
 
-    test(pca, X_test, y_test, iso_model, gBest, circuit)
+    # test(pca, X_test, y_test, iso_model, gBest, circuit)
 
 
 # Quantum Latent PCA Autoencoding Model: QLPAM
