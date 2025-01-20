@@ -74,6 +74,15 @@ def setupCircuit(number_of_populations, gene_per_chromosome):
 
     return circuit
 
+def compute_circuit(circuit, number_of_populations, gene_per_chromosome):
+    for i in range(number_of_populations):
+        circuit.add_register(QuantumRegister(gene_per_chromosome))
+
+    for i in range(number_of_populations):
+        circuit.add_register(ClassicalRegister(gene_per_chromosome))
+
+    return circuit
+
 
 def resetCircuit(circuit):
     """Remove all gates from the quantum circuit used during evolution"""
