@@ -1,4 +1,6 @@
 import logging
+import math
+import random
 
 import pandas as pd
 import numpy as np
@@ -133,11 +135,20 @@ def get_reduced_data_with_nn(X_train, X_test):
     return encoder_model.predict(X_train)
 
 
+def generate_random_parameter_binds(num_parameters):
+    parameter_binds = []
+
+    for _ in range(num_parameters):
+        parameter_binds.append(random.uniform(-math.pi, math.pi))
+
+    return parameter_binds
+
+
 def calculate_expectation_value(circuit, features, params):
     gpu_estimator = None
 
     try:
-        gpu_estimator = AerSimulator(method='statevector', device='GPU')
+        gpu_estimator = AerSimulator(method='automatic')
         gpu_estimator.set_options(precision='single')
     except AerError as e:
         print(e)
@@ -145,7 +156,11 @@ def calculate_expectation_value(circuit, features, params):
     if gpu_estimator is None:
         raise ValueError("Error while initializing the gpu_estimator")
 
-    bound_circuit = circuit.assign_parameters(np.concatenate((features, params)))
+    uniform_features = generate_random_parameter_binds(circuit.num_parameters - len(features) - 1)
+    uniform_features.extend(features)
+    uniform_features.append(params)
+    # parameters = np.concatenate((features, params, uniform_features))
+    bound_circuit = circuit.assign_parameters(uniform_features)
     observables = [Pauli('ZIII'), Pauli('IZII'), Pauli('IIZI'), Pauli('IIIZ')]
     estimator = EstimatorV2(gpu_estimator)
     expectation_values = [estimator.run([(bound_circuit, obs)]).result()[0].data.evs for obs in observables]
@@ -314,15 +329,15 @@ def main():
     logging.info("HQGA Algorithm Completed!")
 
     print("Best solution", gBest.chr)
-    print("Optimal solutions", problem.getOptimum()[2])
-    for each_sol in problem.getOptimum()[2]:
-        dis = utils.hamming_distance(gBest.chr, each_sol[0])
-
-        print("Hamming distance", dis)
+    # print("Optimal solutions", problem.getOptimum()[2])
+    # for each_sol in problem.getOptimum()[2]:
+    #     dis = utils.hamming_distance(gBest.chr, each_sol[0])
+    #
+    #     print("Hamming distance", dis)
 
     logging.info("Testing the result")
 
-    test(pca, X_test, y_test, iso_model, gBest, circuit)
+    test(pca, X_test, y_test, iso_model, gBest.phenotype[0], circuit)
 
 
 # Quantum Latent PCA Autoencoding Model: QLPAM

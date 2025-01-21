@@ -154,6 +154,35 @@ class VariationalProblem(RealProblem):
         self.data = data
         self.y_train = y_train
 
+    def getOptimum(self):
+        fitnesses = []
+
+        list_all_values = []
+        for i in range(self.dim):
+            list_all_values.append(dis.getAllValues(self.lower_bounds, self.upper_bounds, self.num_bit_code))
+        all_space = list(itertools.product(*list_all_values))
+        for chr in all_space:
+            fitnesses.append(self.computeFitness(chr))
+        if self.isMaxProblem():
+            optimal_fit = max(fitnesses)
+        else:
+            optimal_fit = min(fitnesses)
+        list_index = []
+        for ind in range(len(fitnesses)):
+            if fitnesses[ind] == optimal_fit:
+                list_index.append(ind)
+        optimal_values = []
+        gray_optimal_sols = []
+        for ind in list_index:
+            optimal_values.append(all_space[ind])
+            l = []
+            for i in range(self.dim):
+                l.append(
+                    dis.convertFromFloatToBin(all_space[ind][i], self.lower_bounds, self.upper_bounds,
+                                              self.num_bit_code))
+            gray_optimal_sols.append(l)
+        return optimal_fit, optimal_values, gray_optimal_sols
+
     def convertToReal(self, chr):
         # return value as the left point of the interval
         return dis.convertFromBinToFloat(chr, self.lower_bounds, self.upper_bounds, self.num_bit_code, self.dim)

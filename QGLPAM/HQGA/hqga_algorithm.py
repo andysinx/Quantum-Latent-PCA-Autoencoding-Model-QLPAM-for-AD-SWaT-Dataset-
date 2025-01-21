@@ -14,7 +14,7 @@ from . import hqga_utils
 def generate_random_parameter_binds(num_parameters):
     parameter_binds = []
 
-    for _ in range(len(num_parameters)):
+    for _ in range(num_parameters):
         parameter_binds.append(random.uniform(-math.pi, math.pi))
 
     return parameter_binds
@@ -81,19 +81,24 @@ def runQGA(device_features, circuit, params, problem):
                     )
                     job = device_features.device.run(qc_routed)
                 else:
-                    feature_to_bind = [1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5]
-                    # feature_to_bind = []
-                    # iterations = int((circuit.num_parameters - circuit.num_qubits) / 4)
-                    # for i in range(iterations):
-                    #     tmp = problem.data[(i+1)*4]
-                    #     for j in tmp:
-                    #         feature_to_bind.append(j)
-
+                    # feature_to_bind = [1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5]
+                    feature_to_bind = []
                     if gen == 0:
-                        rand_params = generate_random_parameter_binds(num_parameters=circuit.qubits)
+                        iterations = (circuit.num_parameters - circuit.num_qubits) // 4
+                        for i in range(1, iterations + 1):
+                            tmp = problem.data[i * 4]
+                            feature_to_bind.extend(tmp)
+                        rand_params = generate_random_parameter_binds(num_parameters=len(circuit.qubits))
                         bind_params = np.concatenate((feature_to_bind, rand_params))
                     else:
-                        bind_params = np.concatenate((feature_to_bind, chromosome_evolution))
+                        feature_to_bind = [c for chrs in chromosome_evolution for chr in chrs for c in chr]
+                        if len(feature_to_bind) < circuit.num_parameters:
+                            rand_params = generate_random_parameter_binds(num_parameters=(circuit.num_parameters - len(feature_to_bind)))
+                            bind_params = np.concatenate((feature_to_bind, rand_params))
+                        elif len(feature_to_bind) > circuit.num_parameters:
+                            bind_params = feature_to_bind[:circuit.parameters]
+                        else:
+                            bind_params = feature_to_bind
 
                     bounded_circuit = circuit.assign_parameters(bind_params)
 
@@ -117,7 +122,7 @@ def runQGA(device_features, circuit, params, problem):
                         time.sleep(2)
 
                 # Grab results from the job
-                result = job.result(timeout=6.0)
+                result = job.result()
                 break
 
             except Exception as e:
@@ -128,6 +133,7 @@ def runQGA(device_features, circuit, params, problem):
 
         # compute fitness evaluation
         classical_chromosomes = hqga_utils.fromQtoC(hqga_utils.getMaxProbKey(counts))
+        classical_chromosomes = [item for item in classical_chromosomes if len(item) > 1]
         if params.verbose:
             print("\nChromosomes", classical_chromosomes)
 
@@ -162,8 +168,8 @@ def runQGA(device_features, circuit, params, problem):
 
         list_qubit_gate, list_qubit_entang, list_qubit_mutation, list_qubit_X = hqga_utils.computeLists(circuit,
                                                                                                         index_best,
-                                                                                                        params.pop_size,
-                                                                                                        problem.dim * problem.num_bit_code)
+                                                                                                        4,
+                                                                                                        1)
 
         if params.elitism is not hqga_utils.ELITISM_Q:
             # update
@@ -181,7 +187,7 @@ def runQGA(device_features, circuit, params, problem):
             else:
                 raise Exception("Value for elitism is not valid.")
 
-        hqga_utils.resetCircuit(circuit)
+        # hqga_utils.resetCircuit(circuit)
         # gen+=1
 
     gBest.display()
