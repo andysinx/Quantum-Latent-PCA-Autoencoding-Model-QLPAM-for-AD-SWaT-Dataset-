@@ -1,37 +1,5 @@
-from sympy.combinatorics.graycode import gray_to_bin
 from sympy.combinatorics.graycode import bin_to_gray
-
-
-# def convertFromBinToFloat(chr, lower_bounds, upper_bounds,num_bit_code,dim):
-#     """Function that converts the number in gray code to the corresponding float number
-#
-#       Args:
-#           chr (string): a binary individual in gray code
-#           lower_bounds (list): list of real values, each one representing the lower bound for a gene of the individual
-#           upper_bounds (list): list of real values, each one representing the upper bound for a gene of the individual
-#           num_bit_code (int): the number of bits to use for coding one dimension
-#           dim (int): the number of dimensions
-#
-#     Returns:
-#           chr_real (list): list of real values, each representing the allele for a gene of the individual
-#     """
-#     genes = []
-#     chr_real = []
-#     # step = [(x-y)/(2 ** num_bit_code - 1) for x,y in zip(upper_bounds,lower_bounds)]
-#     step =  (upper_bounds - lower_bounds) / (2 ** num_bit_code - 1)
-#     k = 0
-#     #print(dim)
-#     #print(chr)
-#     for i in range(dim):
-#         var = chr[k:k + num_bit_code]
-#         #print("cromosome ", var)
-#         #print(gray_to_bin(var))
-#         #print(int(gray_to_bin(var), 2))
-#         genes.append(int(gray_to_bin(var), 2))
-#         gene_real = lower_bounds[i] + genes[i] * step[i]
-#         chr_real.append(gene_real)
-#         k = k + num_bit_code
-#     return chr_real
+from sympy.combinatorics.graycode import gray_to_bin
 
 
 def convertFromBinToFloat(chr, lower_bounds, upper_bounds, num_bit_code, dim):
@@ -39,31 +7,48 @@ def convertFromBinToFloat(chr, lower_bounds, upper_bounds, num_bit_code, dim):
 
       Args:
           chr (string): a binary individual in gray code
-          lower_bounds (float): the lower bound for a gene of the individual
-          upper_bounds (float): the upper bound for a gene of the individual
+          lower_bounds (float): list of real values, each one representing the lower bound for a gene of the individual
+          upper_bounds (float): list of real values, each one representing the upper bound for a gene of the individual
           num_bit_code (int): the number of bits to use for coding one dimension
           dim (int): the number of dimensions
 
     Returns:
           chr_real (list): list of real values, each representing the allele for a gene of the individual
     """
+    genes = []
     chr_real = []
-
-    # Calculate the step size based on the bounds and the number of bits
     step = (upper_bounds - lower_bounds) / (2 ** num_bit_code - 1)
-
     j = 0
-    # Extract the corresponding binary sequence for each gene
-    var = chr[j:j + num_bit_code]
-
-    # Convert the Gray code to binary, then to integer
-    gene_value = int(gray_to_bin(var), 2)
-
-    # Convert the gene value to the corresponding real value using the step size
-    gene_real = lower_bounds + gene_value * step
-    chr_real.append(gene_real)
-
+    for i in range(dim):
+        var = chr[j:j + num_bit_code]
+        genes.append(int(gray_to_bin(var), 2))
+        gene_real = lower_bounds + genes[i] * step
+        chr_real.append(gene_real)
+        j = j + num_bit_code
     return chr_real
+
+# NEW
+# def convertFromBinToFloat(chr, lower_bounds, upper_bounds, num_bit_code, dim):
+#     """Function that converts the number in gray code to the corresponding float number
+#
+#       Args:
+#           chr (string): a binary individual in gray code
+#           lower_bounds (float): the lower bound for a gene of the individual
+#           upper_bounds (float): the upper bound for a gene of the individual
+#           num_bit_code (int): the number of bits to use for coding one dimension
+#           dim (int): the number of dimensions
+#
+#     Returns:
+#           chr_real (list): list of real values, each representing the allele for a gene of the individual
+#     """
+#     chr_real = []
+#     step = (upper_bounds - lower_bounds) / (2 ** num_bit_code - 1)
+#     j = 0
+#     var = chr[j:j + num_bit_code]
+#     gene_value = int(gray_to_bin(var), 2)
+#     gene_real = lower_bounds + gene_value * step
+#     chr_real.append(gene_real)
+#     return chr_real
 
 
 def convertFromBinToInterval(chr, lower_bounds_input, upper_bounds_input,num_bit_code,dim):

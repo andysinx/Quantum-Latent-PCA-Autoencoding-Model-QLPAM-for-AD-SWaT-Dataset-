@@ -4,9 +4,8 @@ import random
 import time
 
 import numpy as np
-from pyexpat import features
-from tqdm import tqdm
 from qiskit import transpile
+from tqdm import tqdm
 
 from . import hqga_utils
 

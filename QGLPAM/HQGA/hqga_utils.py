@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 from qiskit import (QuantumCircuit, ClassicalRegister, QuantumRegister)
 import copy
 import random
@@ -73,6 +74,7 @@ def setupCircuit(number_of_populations, gene_per_chromosome):
         circuit.add_register(ClassicalRegister(gene_per_chromosome))
 
     return circuit
+
 
 def compute_circuit(circuit, number_of_populations, gene_per_chromosome):
     for i in range(number_of_populations):

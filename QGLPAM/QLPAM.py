@@ -2,28 +2,28 @@ import logging
 import math
 import random
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-
-from sklearn.decomposition import PCA
+from keras.src import Sequential
+from keras.src.callbacks import ModelCheckpoint, TensorBoard
+from keras.src.layers import Dense
 from qiskit import QuantumCircuit
-from qiskit.quantum_info import Pauli
 from qiskit.circuit.library import TwoLocal
-from qiskit_aer import AerError, Aer
+from qiskit.quantum_info import Pauli
+from qiskit_aer import AerError
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2
-from keras.src import Sequential
-from keras.src.layers import Dense
-from keras.src.callbacks import ModelCheckpoint, TensorBoard
+from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
-from sklearn.model_selection import train_test_split
-from HQGA import problems, hqga_algorithm, hqga_utils, utils
 from sklearn.metrics import (accuracy_score, precision_score, confusion_matrix, roc_curve, recall_score,
                              classification_report, roc_auc_score, f1_score, precision_recall_fscore_support)
+from sklearn.model_selection import train_test_split
+
+from HQGA import problems, hqga_algorithm, hqga_utils
+
 # from fastdtw import fastdtw
-from scipy.spatial.distance import pdist, squareform
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -168,13 +168,30 @@ def calculate_expectation_value(circuit, features, params):
     return exp_val
 
 
-def test(pca, X_test, y_test, iso_model, res, circuit):
-    pca_test_reduced = pca.transform(X_test)
+def test(X_test, y_test, iso_model, res, circuit, pca=None, X_train=None):
+    pca_test_reduced = None
+    ae_test_reduced = None
+    if pca is None:
+        if X_train is not None:
+            ae_test_reduced = get_reduced_data_with_nn(X_train, X_test)
+        else:
+            raise Exception("Both pca and X_train are None")
+    else:
+        pca_test_reduced = pca.transform(X_test)
+
     expectation_values_all_samples = []
 
-    for features in pca_test_reduced:
-        reconstruction = calculate_expectation_value(circuit, features, res)
-        expectation_values_all_samples.append(reconstruction)
+    if pca_test_reduced is not None:
+        for features in pca_test_reduced:
+            reconstruction = calculate_expectation_value(circuit, features, res)
+            expectation_values_all_samples.append(reconstruction)
+    elif ae_test_reduced is not None:
+        for features in pca_test_reduced:
+            reconstruction = calculate_expectation_value(circuit, features, res)
+            expectation_values_all_samples.append(reconstruction)
+    else:
+        raise Exception("No pca or Autoencoder were provided")
+
 
     iso_predictions = iso_model.predict(expectation_values_all_samples)
     iso_binary_predictions = [1 if pred == -1 else 0 for pred in iso_predictions]
@@ -226,14 +243,14 @@ def test(pca, X_test, y_test, iso_model, res, circuit):
     plt.savefig('./graphics/roc_curve_isolation.png', dpi=300, bbox_inches='tight')
     plt.close()
 
-    plt.figure(figsize=(10, 6))
-    sns.heatmap(expectation_values_all_samples, cmap='coolwarm', cbar_kws={'label': 'Expectation Value'})
-    plt.title('Heatmap of Expectation Values per Qubit across Data Samples')
-    plt.xlabel('Qubits')
-    plt.ylabel('Data Samples')
-    plt.xticks(ticks=[0.5, 1.5, 2.5, 3.5], labels=['q0', 'q1', 'q2', 'q3'])  # Etichetta per ogni qubit
-    plt.savefig('./graphics/expectation_values_heatmap.png', dpi=300, bbox_inches='tight')
-    plt.close()
+    # plt.figure(figsize=(10, 6))
+    # sns.heatmap(expectation_values_all_samples, cmap='coolwarm', cbar_kws={'label': 'Expectation Value'})
+    # plt.title('Heatmap of Expectation Values per Qubit across Data Samples')
+    # plt.xlabel('Qubits')
+    # plt.ylabel('Data Samples')
+    # plt.xticks(ticks=[0.5, 1.5, 2.5, 3.5], labels=['q0', 'q1', 'q2', 'q3'])  # Etichetta per ogni qubit
+    # plt.savefig('./graphics/expectation_values_heatmap.png', dpi=300, bbox_inches='tight')
+    # plt.close()
 
     # data_test_reconstructed = pca.inverse_transform(expectation_values_all_samples)
     # print("MSE test: ", mse(X_test, data_test_reconstructed))
@@ -243,22 +260,49 @@ def main():
     X_train, X_test, y_test, y_train = load_data()
 
     # Reduced Data with Neural Network
-    # reduced_data = get_reduced_data_with_nn(X_train, X_test)
+    reduced_data = get_reduced_data_with_nn(X_train, X_test)
 
     # Reduced Data with PCA
     pca = PCA(n_components=4)
-    reduced_data = pca.fit_transform(X_train)
+    # reduced_data = pca.fit_transform(X_train)
 
-    dim = reduced_data.shape[1]  # LATENT SPACE PQC
     # dim = 4  # LATENT SPACE PQC
+    dim = reduced_data.shape[1]  # LATENT SPACE PQC
+
+    # Set Hyperparameters in the case of the quantum elitism
+    # k = 20
+    k = 4
+    # max_gen = 10 - 20 - 30 - 50 per test
+    max_gen = 5
+    delta = np.pi / 8
+    mu = 0.3
+    rho = np.pi / 16
+    elitism = hqga_utils.ELITISM_Q
+
+    params = None
+
+    if elitism == hqga_utils.ELITISM_Q or elitism == hqga_utils.ELITISM_D:
+        params = hqga_utils.Parameters(k, max_gen, delta, mu, elitism)
+    elif elitism == hqga_utils.ELITISM_R:
+        params = hqga_utils.ReinforcementParameters(k, max_gen, delta, rho, mu)
+    else:
+        print("Please, select one elitism procedure among ELITISM_Q, ELITISM_D and ELITISM_R")
+
+    if params is None:
+        raise ValueError("Error while initializing params!")
+
+    # presentation hyper-parameters
+    params.progressBar = True
+    params.verbose = True
+    params.draw_circuit = True
+    num_bit_code = 1
 
     ansatz = TwoLocal(dim, rotation_blocks=['rx', 'ry', 'rz'], entanglement_blocks=['cx', 'swap', 'h'],
                       entanglement='circular', reps=1, insert_barriers=True)
 
     # Define an Ansatz to be trained
-    # feature_map = QuantumCircuit(dim)
     feature_map = QuantumCircuit()
-    feature_map = hqga_utils.compute_circuit(feature_map, 4, 1)
+    feature_map = hqga_utils.compute_circuit(feature_map, params.pop_size, num_bit_code)
     feature_map &= ansatz
     feature_map = feature_map.decompose()
     feature_map.draw(output='mpl')
@@ -289,37 +333,22 @@ def main():
 
     device_features = hqga_utils.device(backend)
 
-    # hyper-parameters in the case of the quantum elitism
-    # k = 20
-    k = 3
-    # max_gen = 50
-    max_gen = 5
-    delta = np.pi / 8
-    mu = 0.3
-    rho = np.pi / 16
-    elitism = hqga_utils.ELITISM_Q
-
-    params = None
-
-    if elitism == hqga_utils.ELITISM_Q or elitism == hqga_utils.ELITISM_D:
-        params = hqga_utils.Parameters(k, max_gen, delta, mu, elitism)
-    elif elitism == hqga_utils.ELITISM_R:
-        params = hqga_utils.ReinforcementParameters(k, max_gen, delta, rho, mu)
-    else:
-        print("Please, select one elitism procedure among ELITISM_Q, ELITISM_D and ELITISM_R")
-
-    if params is None:
-        raise ValueError("Error while initializing params!")
-
-    # presentation hyper-parameters
-    params.progressBar = True
-    params.verbose = True
-    params.draw_circuit = True
-
     iso_model = IsolationForest(n_estimators=100, max_samples='auto', contamination=float(.012),
                                 max_features=1.0, bootstrap=False, n_jobs=-1, random_state=42, verbose=0)
 
-    problem = problems.VariationalProblem("AnomalyDetection", 4, 5, -np.pi, np.pi, circuit, iso_model, reduced_data, y_train)
+
+    problem = problems.VariationalProblem(
+        name="AnomalyDetection",
+        dimension=dim,
+        num_bit_code=num_bit_code,
+        lower_bounds=-np.pi,
+        upper_bounds=np.pi,
+        circuit=circuit,
+        iso_model=iso_model,
+        data=reduced_data,
+        y_train=y_train
+    )
+
     # problem = problems.VariationalProblem("AnomalyDetection", 4, 5, -np.pi, np.pi, circuit, iso_model, None, None)
 
     logging.info("Starting HQGA Algorithm...")
@@ -337,7 +366,11 @@ def main():
 
     logging.info("Testing the result")
 
-    test(pca, X_test, y_test, iso_model, gBest.phenotype[0], circuit)
+    # Test with PCA
+    # test(X_test, y_test, iso_model, gBest.phenotype[0], circuit, pca, None)
+
+    # Test with Autoencoder
+    test(X_test, y_test, iso_model, gBest.phenotype[0], circuit, None, X_train)
 
 
 # Quantum Latent PCA Autoencoding Model: QLPAM
