@@ -244,7 +244,7 @@ def initializeLists(circuit):
     return list_qubit_gate, list_qubit_entang, list_qubit_mutation, list_qubit_X
 
 
-class Parameters():
+class Parameters:
     """Class that defines the information related to the hyper-parameters of HQGA"""
 
     def __init__(self, pop_size, max_gen, epsilon_init, prob_mut, elitism, num_shots=1, progressBar=False, verbose=True,

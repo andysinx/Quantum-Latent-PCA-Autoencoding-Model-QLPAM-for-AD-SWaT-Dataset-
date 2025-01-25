@@ -5,7 +5,6 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from keras.src import Sequential
 from keras.src.callbacks import ModelCheckpoint, TensorBoard
 from keras.src.layers import Dense
@@ -18,14 +17,16 @@ from qiskit_ibm_runtime import EstimatorV2
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics import (accuracy_score, precision_score, confusion_matrix, roc_curve, recall_score,
-                             classification_report, roc_auc_score, f1_score, precision_recall_fscore_support)
+                             classification_report, roc_auc_score, f1_score, precision_recall_fscore_support,
+                             mean_squared_error)
 from sklearn.model_selection import train_test_split
 
 from HQGA import problems, hqga_algorithm, hqga_utils
 
-# from fastdtw import fastdtw
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+generation_dir = "10gen"
+model_for_reduced_data = "pca"
+generation = 10
 
 
 def load_data():
@@ -44,17 +45,29 @@ def load_data():
     ]
 
     # The first row only contains labels
-    # 'TIMESTAMP' is irrelevant for the thesis
     # The other dropped columns contain either only 0s, only 1s or only 2s and are therefore irrelevant
 
     df = df.iloc[1:]
-    df = df.drop(['TIMESTAMP', 'P202', 'P301', 'P401', 'P404', 'P502', 'P601', 'P603'], axis=1)
+    df = df.drop(['P202', 'P301', 'P401', 'P404', 'P502', 'P601', 'P603'], axis=1)
 
     # The dataset labels attacks by 'A ttack' and 'Attack', and labels normal data as 'Normal'
     # To keep the same structure in all datasets, the 'A ttack' and 'Attack' values are changed to '-1' and normal values to '1'
 
     df['OUTCOME'].replace(to_replace=['A ttack', 'Attack'], value=1, inplace=True)
     df['OUTCOME'].replace(to_replace=['Normal'], value=0, inplace=True)
+
+    # Convert 'TIMESTAMP' to datetime if it's not already
+    df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], errors='coerce')
+
+    # Set the 'TIMESTAMP' as the index
+    df.set_index('TIMESTAMP', inplace=True)
+
+    # Optionally, you can resample or reindex the data if needed, e.g., if there are missing timestamps
+    # Example: resample the data to a consistent time frequency (e.g., 1 second)
+    # df = df.resample('1S').ffill()  # Forward fill missing data points if necessary
+
+    # Reconvert the index back to column for further processing
+    df.reset_index(inplace=True)
 
     # data types need to be numeric to be encoded to z-scores --> convert column object data types to numerics
 
@@ -96,8 +109,7 @@ def load_data():
     return X_train, X_test, y_test, y_train
 
 
-def get_reduced_data_with_nn(X_train, X_test):
-    # PCA O ENCODING NEURALE (BASTA COMMENTARE UNO E SCOMMENTARE L'ALTRO)
+def get_reduced_data_with_nn(X_train, y_train, X_test, y_test):
     ae = model = Sequential()
     model.add(Dense(35, input_dim=X_train.shape[1], activation='relu'))
     model.add(Dense(30, activation='relu'))
@@ -112,7 +124,7 @@ def get_reduced_data_with_nn(X_train, X_test):
     model.add(Dense(35, activation='relu'))
     model.add(Dense(X_train.shape[1]))
 
-    nb_epoch = 150
+    nb_epoch = 500
     batch_size = 64
 
     ae.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
@@ -121,8 +133,12 @@ def get_reduced_data_with_nn(X_train, X_test):
 
     tensorboard = TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
 
-    history = ae.fit(X_train, X_train, epochs=nb_epoch, batch_size=batch_size, validation_data=(X_test, X_test),
-                     verbose=1, callbacks=[checkpointer, tensorboard]).history
+    fit_history = ae.fit(X_train, X_train, epochs=nb_epoch, batch_size=batch_size, validation_data=(X_test, y_test),
+                         verbose=1, callbacks=[checkpointer, tensorboard]).history
+
+    autoencoder_prediction_test_data = ae.predict(X_test)
+
+    mse = mean_squared_error(autoencoder_prediction_test_data, y_test)
 
     encoder_model = Sequential()  # Modello separato per ottenere solo la parte di encoding
     encoder_model.add(ae.layers[0])  # Strato di input
@@ -132,7 +148,9 @@ def get_reduced_data_with_nn(X_train, X_test):
     encoder_model.add(ae.layers[4])
     encoder_model.add(ae.layers[5])
 
-    return encoder_model.predict(X_train)
+    encoder_prediction_train_data = encoder_model.predict(X_train)
+
+    return encoder_prediction_train_data, fit_history, autoencoder_prediction_test_data
 
 
 def generate_random_parameter_binds(num_parameters):
@@ -161,7 +179,24 @@ def calculate_expectation_value(circuit, features, params):
     uniform_features.append(params)
     # parameters = np.concatenate((features, params, uniform_features))
     bound_circuit = circuit.assign_parameters(uniform_features)
-    observables = [Pauli('ZIII'), Pauli('IZII'), Pauli('IIZI'), Pauli('IIIZ')]
+    observables = [
+        Pauli('ZIIIIIIIIIIIIIII'),  # Z on qubit 0
+        Pauli('IZIIIIIIIIIIIIII'),  # Z on qubit 1
+        Pauli('IIZIIIIIIIIIIIII'),  # Z on qubit 2
+        Pauli('IIIZIIIIIIIIIIII'),  # Z on qubit 3
+        Pauli('IIIIZIIIIIIIIIII'),  # Z on qubit 4
+        Pauli('IIIIIZIIIIIIIIII'),  # Z on qubit 5
+        Pauli('IIIIIIZIIIIIIIII'),  # Z on qubit 6
+        Pauli('IIIIIIIZIIIIIIII'),  # Z on qubit 7
+        Pauli('IIIIIIIIZIIIIIII'),  # Z on qubit 8
+        Pauli('IIIIIIIIIZIIIIII'),  # Z on qubit 9
+        Pauli('IIIIIIIIIIZIIIII'),  # Z on qubit 10
+        Pauli('IIIIIIIIIIIZIIII'),  # Z on qubit 11
+        Pauli('IIIIIIIIIIIIZIII'),  # Z on qubit 12
+        Pauli('IIIIIIIIIIIIIZII'),  # Z on qubit 13
+        Pauli('IIIIIIIIIIIIIIZI'),  # Z on qubit 14
+        Pauli('IIIIIIIIIIIIIIIZ')  # Z on qubit 15
+    ]
     estimator = EstimatorV2(gpu_estimator)
     expectation_values = [estimator.run([(bound_circuit, obs)]).result()[0].data.evs for obs in observables]
     exp_val = [exp.item() for exp in expectation_values]
@@ -171,27 +206,26 @@ def calculate_expectation_value(circuit, features, params):
 def test(X_test, y_test, iso_model, res, circuit, pca=None, X_train=None):
     pca_test_reduced = None
     ae_test_reduced = None
-    if pca is None:
-        if X_train is not None:
-            ae_test_reduced = get_reduced_data_with_nn(X_train, X_test)
-        else:
-            raise Exception("Both pca and X_train are None")
-    else:
+    if pca is None and X_train is not None:
+        ae_test_reduced = get_reduced_data_with_nn(X_train, X_test)
+    elif pca is not None and X_train is None:
         pca_test_reduced = pca.transform(X_test)
+    else:
+        raise Exception("No PCA or Autoencoder were provided")
 
     expectation_values_all_samples = []
 
+    # Assign reduced data only if it's not None
     if pca_test_reduced is not None:
-        for features in pca_test_reduced:
-            reconstruction = calculate_expectation_value(circuit, features, res)
-            expectation_values_all_samples.append(reconstruction)
+        reduced_data = pca_test_reduced
     elif ae_test_reduced is not None:
-        for features in pca_test_reduced:
-            reconstruction = calculate_expectation_value(circuit, features, res)
-            expectation_values_all_samples.append(reconstruction)
+        reduced_data = ae_test_reduced
     else:
-        raise Exception("No pca or Autoencoder were provided")
+        raise Exception("No valid reduction data available")
 
+    for features in reduced_data:
+        reconstruction = calculate_expectation_value(circuit, features, res)
+        expectation_values_all_samples.append(reconstruction)
 
     iso_predictions = iso_model.predict(expectation_values_all_samples)
     iso_binary_predictions = [1 if pred == -1 else 0 for pred in iso_predictions]
@@ -219,15 +253,16 @@ def test(X_test, y_test, iso_model, res, circuit, pca=None, X_train=None):
     print("\nClassification Report:\n", classification_report(iso_true_labels, iso_binary_predictions))
 
     # Stampa della matrice di confusione
-    LABELS = ['Normal', 'Anomaly']
-    print("Confusion Matrix:\n", conf_matrix)
-    plt.figure(figsize=(12, 12))
-    sns.heatmap(conf_matrix, xticklabels=LABELS, yticklabels=LABELS, annot=True, fmt="d", cmap='Blues')
-    plt.title("Confusion Matrix")
-    plt.ylabel('True Class')
-    plt.xlabel('Predicted Class')
-    plt.savefig('./graphics/confusion_matrix_test.png', dpi=300, bbox_inches='tight')
-    plt.close()
+    # LABELS = ['Normal', 'Anomaly']
+    # print("Confusion Matrix:\n", conf_matrix)
+    # plt.figure(figsize=(12, 12))
+    # sns.heatmap(conf_matrix, xticklabels=LABELS, yticklabels=LABELS, annot=True, fmt="d", cmap='Blues')
+    # plt.title("Confusion Matrix")
+    # plt.ylabel('True Class')
+    # plt.xlabel('Predicted Class')
+    # plt.savefig('./graphics/{}/{}/confusion_matrix_test.png'.format(generation_dir, model_for_reduced_data), dpi=300,
+    #             bbox_inches='tight')
+    # plt.close()
 
     # Grafico della curva ROC
     plt.figure(figsize=(10, 6))
@@ -240,7 +275,8 @@ def test(X_test, y_test, iso_model, res, circuit, pca=None, X_train=None):
     plt.title('Receiver Operating Characteristic (ROC) Curve')
     plt.legend(loc='lower right')
     plt.grid()
-    plt.savefig('./graphics/roc_curve_isolation.png', dpi=300, bbox_inches='tight')
+    plt.savefig('./graphics/{}/{}/roc_curve_isolation.png'.format(generation_dir, model_for_reduced_data), dpi=300,
+                bbox_inches='tight')
     plt.close()
 
     # plt.figure(figsize=(10, 6))
@@ -260,11 +296,11 @@ def main():
     X_train, X_test, y_test, y_train = load_data()
 
     # Reduced Data with Neural Network
-    reduced_data = get_reduced_data_with_nn(X_train, X_test)
+    # reduced_data = get_reduced_data_with_nn(X_train, y_train, X_test, y_test)
 
     # Reduced Data with PCA
     pca = PCA(n_components=4)
-    # reduced_data = pca.fit_transform(X_train)
+    reduced_data = pca.fit_transform(X_train)
 
     # dim = 4  # LATENT SPACE PQC
     dim = reduced_data.shape[1]  # LATENT SPACE PQC
@@ -273,7 +309,7 @@ def main():
     # k = 20
     k = 4
     # max_gen = 10 - 20 - 30 - 50 per test
-    max_gen = 5
+    max_gen = generation
     delta = np.pi / 8
     mu = 0.3
     rho = np.pi / 16
@@ -295,18 +331,19 @@ def main():
     params.progressBar = True
     params.verbose = True
     params.draw_circuit = True
-    num_bit_code = 1
+
+    num_bit_code = 4
 
     ansatz = TwoLocal(dim, rotation_blocks=['rx', 'ry', 'rz'], entanglement_blocks=['cx', 'swap', 'h'],
                       entanglement='circular', reps=1, insert_barriers=True)
 
     # Define an Ansatz to be trained
     feature_map = QuantumCircuit()
-    feature_map = hqga_utils.compute_circuit(feature_map, params.pop_size, num_bit_code)
+    feature_map = hqga_utils.compute_circuit(feature_map, params.pop_size, 1 * num_bit_code)
     feature_map &= ansatz
     feature_map = feature_map.decompose()
     feature_map.draw(output='mpl')
-    plt.savefig('./graphics/quantum_kernels.png')
+    plt.savefig('./graphics/{}/{}/quantum_kernels.png'.format(generation_dir, model_for_reduced_data))
 
     # Put together our quantum classifier
     circuit = feature_map
@@ -336,20 +373,17 @@ def main():
     iso_model = IsolationForest(n_estimators=100, max_samples='auto', contamination=float(.012),
                                 max_features=1.0, bootstrap=False, n_jobs=-1, random_state=42, verbose=0)
 
-
     problem = problems.VariationalProblem(
-        name="AnomalyDetection",
-        dimension=dim,
         num_bit_code=num_bit_code,
-        lower_bounds=-np.pi,
-        upper_bounds=np.pi,
+        lower_bounds=[-np.pi],
+        upper_bounds=[np.pi],
         circuit=circuit,
         iso_model=iso_model,
         data=reduced_data,
         y_train=y_train
     )
 
-    # problem = problems.VariationalProblem("AnomalyDetection", 4, 5, -np.pi, np.pi, circuit, iso_model, None, None)
+    # problem = problems.VariationalProblem(num_bit_code, [-np.pi], [np.pi], circuit, iso_model, None, None)
 
     logging.info("Starting HQGA Algorithm...")
 
@@ -367,10 +401,10 @@ def main():
     logging.info("Testing the result")
 
     # Test with PCA
-    # test(X_test, y_test, iso_model, gBest.phenotype[0], circuit, pca, None)
+    test(X_test, y_test, iso_model, gBest.phenotype[0], circuit, pca, None)
 
     # Test with Autoencoder
-    test(X_test, y_test, iso_model, gBest.phenotype[0], circuit, None, X_train)
+    # test(X_test, y_test, iso_model, gBest.phenotype[0], circuit, None, X_train)
 
 
 # Quantum Latent PCA Autoencoding Model: QLPAM

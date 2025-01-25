@@ -147,8 +147,8 @@ class RealProblem(Problem):
 
 
 class VariationalProblem(RealProblem):
-    def __init__(self, name, dimension, num_bit_code, lower_bounds, upper_bounds, circuit, iso_model, data, y_train):
-        super().__init__(name, dimension, num_bit_code, lower_bounds, upper_bounds)
+    def __init__(self, num_bit_code, lower_bounds, upper_bounds, circuit, iso_model, data, y_train):
+        super().__init__("AnomalyDetection", 1, num_bit_code, lower_bounds, upper_bounds)
         self.circuit = circuit
         self.iso_model = iso_model
         self.data = data
@@ -214,7 +214,24 @@ class VariationalProblem(RealProblem):
         parameters = np.concatenate((features, params, uniform_features))
         bound_circuit = circuit.assign_parameters(parameters)
 
-        observables = [Pauli('ZIII'), Pauli('IZII'), Pauli('IIZI'), Pauli('IIIZ')]
+        observables = [
+            Pauli('ZIIIIIIIIIIIIIII'),  # Z on qubit 0
+            Pauli('IZIIIIIIIIIIIIII'),  # Z on qubit 1
+            Pauli('IIZIIIIIIIIIIIII'),  # Z on qubit 2
+            Pauli('IIIZIIIIIIIIIIII'),  # Z on qubit 3
+            Pauli('IIIIZIIIIIIIIIII'),  # Z on qubit 4
+            Pauli('IIIIIZIIIIIIIIII'),  # Z on qubit 5
+            Pauli('IIIIIIZIIIIIIIII'),  # Z on qubit 6
+            Pauli('IIIIIIIZIIIIIIII'),  # Z on qubit 7
+            Pauli('IIIIIIIIZIIIIIII'),  # Z on qubit 8
+            Pauli('IIIIIIIIIZIIIIII'),  # Z on qubit 9
+            Pauli('IIIIIIIIIIZIIIII'),  # Z on qubit 10
+            Pauli('IIIIIIIIIIIZIIII'),  # Z on qubit 11
+            Pauli('IIIIIIIIIIIIZIII'),  # Z on qubit 12
+            Pauli('IIIIIIIIIIIIIZII'),  # Z on qubit 13
+            Pauli('IIIIIIIIIIIIIIZI'),  # Z on qubit 14
+            Pauli('IIIIIIIIIIIIIIIZ')  # Z on qubit 15
+        ]
         estimator = EstimatorV2(gpu_estimator)
         expectation_values = [estimator.run([(bound_circuit, obs)]).result()[0].data.evs for obs in observables]
         exp_val = [exp.item() for exp in expectation_values]

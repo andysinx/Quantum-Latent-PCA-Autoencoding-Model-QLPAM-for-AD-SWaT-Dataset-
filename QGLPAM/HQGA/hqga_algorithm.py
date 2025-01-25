@@ -80,7 +80,7 @@ def runQGA(device_features, circuit, params, problem):
                     )
                     job = device_features.device.run(qc_routed)
                 else:
-                    # feature_to_bind = [1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5]
+                    #bind_params = [1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4]
                     feature_to_bind = []
                     if gen == 0:
                         iterations = (circuit.num_parameters - circuit.num_qubits) // 4
@@ -95,7 +95,7 @@ def runQGA(device_features, circuit, params, problem):
                             rand_params = generate_random_parameter_binds(num_parameters=(circuit.num_parameters - len(feature_to_bind)))
                             bind_params = np.concatenate((feature_to_bind, rand_params))
                         elif len(feature_to_bind) > circuit.num_parameters:
-                            bind_params = feature_to_bind[:circuit.parameters]
+                            bind_params = feature_to_bind[:circuit.num_parameters]
                         else:
                             bind_params = feature_to_bind
 
@@ -132,7 +132,7 @@ def runQGA(device_features, circuit, params, problem):
 
         # compute fitness evaluation
         classical_chromosomes = hqga_utils.fromQtoC(hqga_utils.getMaxProbKey(counts))
-        classical_chromosomes = [item for item in classical_chromosomes if len(item) > 1]
+        classical_chromosomes = [item for item in classical_chromosomes if len(item) < 5]
         if params.verbose:
             print("\nChromosomes", classical_chromosomes)
 
@@ -167,8 +167,8 @@ def runQGA(device_features, circuit, params, problem):
 
         list_qubit_gate, list_qubit_entang, list_qubit_mutation, list_qubit_X = hqga_utils.computeLists(circuit,
                                                                                                         index_best,
-                                                                                                        4,
-                                                                                                        1)
+                                                                                                        params.pop_size,
+                                                                                                        problem.dim * problem.num_bit_code)
 
         if params.elitism is not hqga_utils.ELITISM_Q:
             # update
